@@ -22,7 +22,7 @@ This guide provides a structured approach to reconnaissance focused exclusively 
     * `xss_wordlist.txt`: For crafting Cross-Site Scripting (XSS) payloads. [SecLists](https://github.com/danielmiessler/SecLists.git) contains excellent XSS wordlists.
     * `resolvers.txt`: A list of reliable DNS resolvers. A good source is [https://github.com/trickest/resolvers](https://github.com/trickest/resolvers).
     * `api_endpoints.txt`: A wordlist containing potential API endpoints. [z5jt](https://github.com/z5jt/API-documentation-Wordlist) 
-3.  **Configure Nuclei Templates:** Ensure your Nuclei templates directory (`/home/USER/Documents/nuclei-templates/`) is correctly configured.
+3.  **Configure Nuclei Templates:** Ensure your Nuclei templates directory (`/home/USER/nuclei-templates/`) is correctly configured.
 4.  **`sort.py` (Optional):** A Python script (`sort.py`) for sorting and optionally limiting parameter lists.
 
 ## Manual Reconnaissance
