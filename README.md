@@ -152,6 +152,7 @@ This guide provides a structured approach to reconnaissance focused exclusively 
     ```bash
     python3 sort.py
     ```
+    **Note:** the sort.py is only useful if over 100,000 results. So in many cases it is uneeded. 
 
 ## Contributions
 
