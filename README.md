@@ -102,10 +102,10 @@ This guide provides a structured approach to reconnaissance focused exclusively 
     nuclei -list live_domains_only.txt -tags cves,osint,tech -o nuclei_general.txt
     ```
     ```bash
-    nuclei -list live_domains_only.txt -t /home/cyphernove1337/Documents/nuclei-templates/cors.yaml -o nuclei_cors.txt
+    nuclei -list live_domains_only.txt -t /home/USER/Documents/nuclei-templates/cors.yaml -o nuclei_cors.txt
     ```
     ```bash
-    nuclei -list live_domains_only.txt -t /home/cyphernove1337/Documents/nuclei-templates/cRlf.yaml -o nuclei_crlf.txt
+    nuclei -list live_domains_only.txt -t /home/USER/Documents/nuclei-templates/cRlf.yaml -o nuclei_crlf.txt
     ```
     ```bash
     cat allurls.txt | gf lfi | nuclei -tags lfi -o nuclei_lfi.txt
