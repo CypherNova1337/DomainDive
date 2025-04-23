@@ -39,7 +39,7 @@ These are the primary tools used in the DomainDive workflow.
 6.  **uro:** A simple tool to extract unique URLs from a list.
 
     ```bash
-    go install github.com/s0md3v/uro@latest
+    pipx install uro
     ```
 
 7.  **qsreplace:** A tool to replace values of query string parameters in URLs.
@@ -58,7 +58,7 @@ These are the primary tools used in the DomainDive workflow.
 
     ```bash
     go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-    nuclei -update-templates
+    nuclei --update
     ```
 
 10. **SecretFinder:** A python script for finding sensitive data in JavaScript files.
