@@ -51,7 +51,7 @@ This guide provides a structured approach to reconnaissance focused exclusively 
 
 3.  **Phase 2: URL Discovery and Content Extraction**
     ```bash
-    katana -u live_domains_only.txt -d 10 -c 50 -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg >> allurls.txt
+    katana -u live_domains_only.txt -d 10 -c 50 -kf all -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg >> allurls.txt
     ```
     ```bash
     cat live_domains_only.txt | gau | anew allurls.txt
