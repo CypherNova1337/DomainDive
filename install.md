@@ -1,161 +1,151 @@
 # DomainDive - Installation Guide
 
-This guide provides step-by-step instructions for installing the necessary tools for the DomainDive Apex Domain Reconnaissance Arsenal. Follow these instructions to set up your environment.
+This guide installs everything the DomainDive Apex Domain Reconnaissance Arsenal uses. Commands are for **Debian/Ubuntu**; adapt the package-manager lines for other distributions or macOS.
 
-## Core Tools Installation
+Everything that isn't a Go binary or a system package goes in `~/tools/`. The commands in `README.md` assume that location.
 
-These are the primary tools used in the DomainDive workflow.
+```bash
+mkdir -p ~/tools/wordlists
+```
 
-1.  **httpx-toolkit:** A fast and multi-purpose HTTP toolkit that allows to run multiple probes using retryablehttp library.
+## 1. System Packages
 
-    ```bash
-    go install github.com/projectdiscovery/httpx/cmd/httpx@latest
-    ```
+```bash
+sudo apt update
+sudo apt-get -y install git curl jq nmap sslscan python3 python3-pip pipx libpcap-dev p7zip-full
+pipx ensurepath
+```
 
-2.  **katana:** A next-generation crawling and spidering framework.
+`libpcap-dev` is needed to build `naabu`.
 
-    ```bash
-    go install github.com/projectdiscovery/katana/cmd/katana@latest
-    ```
+## 2. Go
 
-3.  **gau (Get All URLs):** Fetches known URLs from various sources.
+Installs the current Go release (dns-helix and the other Go tools need 1.24 or newer).
 
-    ```bash
-    go install github.com/lc/gau/cmd/gau@latest
-    ```
+```bash
+GO_VERSION=$(curl -s 'https://go.dev/VERSION?m=text' | head -1)
+wget "https://go.dev/dl/${GO_VERSION}.linux-amd64.tar.gz"
+sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf "${GO_VERSION}.linux-amd64.tar.gz"
+echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> ~/.bashrc
+source ~/.bashrc
+go version
+```
 
-4.  **waybackurls:** Fetch all URLs that the Wayback Machine knows about for a given domain.
+## 3. My Tools
 
-    ```bash
-    go install github.com/tomnomnom/waybackurls@latest
-    ```
+These are my own tools, used throughout the workflow.
 
-5.  **subjs:** A tool to get javascript files URLs on a given domain.
+```bash
+# DomainDive itself (for scope_filter.py and sort.py)
+git clone https://github.com/CypherNova1337/DomainDive ~/tools/DomainDive
 
-    ```bash
-    go install github.com/lc/subjs@latest
-    ```
+# Go tools
+go install github.com/CypherNova1337/paramvoid@latest
+go install github.com/cyphernova1337/sourcemapper@latest
 
-6.  **uro:** A simple tool to extract unique URLs from a list.
+# Python tools installed as commands
+for t in VoidRecon LFI-Machine SmartSQL VoidStrike Auto-IDOR; do
+    git clone https://github.com/CypherNova1337/$t ~/tools/$t
+    pipx install ~/tools/$t
+done
 
-    ```bash
-    pipx install uro
-    ```
+# Python tools run from their folder
+for t in Personal_Scipts NovaLure VoidOrigin; do
+    git clone https://github.com/CypherNova1337/$t ~/tools/$t
+    pip3 install -r ~/tools/$t/requirements.txt
+done
 
-7.  **qsreplace:** A tool to replace values of query string parameters in URLs.
+# Nuclei templates and gf patterns
+git clone https://github.com/CypherNova1337/Personal_Nuclei_Templates ~/tools/Personal_Nuclei_Templates
+git clone https://github.com/CypherNova1337/Firebase_Nuclei ~/tools/Firebase_Nuclei
+git clone https://github.com/CypherNova1337/GF_Patterns ~/tools/GF_Patterns
+mkdir -p ~/.gf && cp ~/tools/GF_Patterns/*.json ~/.gf/
 
-    ```bash
-    go install github.com/tomnomnom/qsreplace@latest
-    ```
+# Code Specter is a bookmarklet: copy the contents of Code Specter.js into a bookmark's URL field
+git clone https://github.com/CypherNova1337/Code-Specter ~/tools/Code-Specter
+```
 
-8.  **dirsearch:** An advanced command-line tool for brute-forcing web directories and files.
+On newer Debian/Ubuntu releases `pip3 install` outside a virtual environment is blocked. Either add `--break-system-packages`, or make a venv first (`python3 -m venv ~/tools/venv && source ~/tools/venv/bin/activate`) and run the `pip3` lines inside it.
 
-    ```bash
-    git clone https://github.com/maurosoria/dirsearch.git
-    ```
+| Tool | What it does here |
+|---|---|
+| `scope_filter.py` | Keeps only exact apex hosts and strips out-of-scope entries from every step's output |
+| [VoidRecon](https://github.com/CypherNova1337/VoidRecon) | Full recon pipeline with enforced scope (`voidrecon setup` after install to add API keys) |
+| [paramvoid](https://github.com/CypherNova1337/paramvoid) | Hidden HTTP parameter discovery |
+| [sourcemapper](https://github.com/cyphernova1337/sourcemapper) | Rebuilds original JavaScript source from source maps |
+| [Personal_Scipts](https://github.com/CypherNova1337/Personal_Scipts) | `webscan.py` (CORS, CRLF, hop-by-hop) and `secretscan.py` (secrets in JS) |
+| [NovaLure](https://github.com/CypherNova1337/NovaLure) | Blind SSRF and open redirects via out-of-band callbacks |
+| [LFI-Machine](https://github.com/CypherNova1337/LFI-Machine) | Adaptive local file inclusion |
+| [SmartSQL](https://github.com/CypherNova1337/SmartSQL) | WAF-aware SQL injection |
+| [VoidStrike](https://github.com/CypherNova1337/VoidStrike) | RCE, SSTI, command injection, deserialisation |
+| [Auto-IDOR](https://github.com/CypherNova1337/Auto-IDOR) | IDOR testing with two real accounts |
+| [VoidOrigin](https://github.com/CypherNova1337/VoidOrigin) | Origin IP discovery behind a CDN |
+| [Personal_Nuclei_Templates](https://github.com/CypherNova1337/Personal_Nuclei_Templates) | High-signal Nuclei templates |
+| [Firebase_Nuclei](https://github.com/CypherNova1337/Firebase_Nuclei) | Firebase service discovery template |
+| [GF_Patterns](https://github.com/CypherNova1337/GF_Patterns) | Modern gf patterns (`lfi`, `sqli`, `xss`, `rce`, `ssti`, `idor`, `firebase`, `js-sinks`, ...) |
+| [Code-Specter](https://github.com/CypherNova1337/Code-Specter) | In-browser DOM XSS sink and developer-note finder |
 
-9.  **Nuclei:** Fast and customisable vulnerability scanner based on YAML based DSL.
+## 4. Third-Party Tools
 
-    ```bash
-    go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-    nuclei --update
-    ```
+```bash
+go install github.com/projectdiscovery/httpx/cmd/httpx@latest
+CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest
+go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
+go install github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
+go install github.com/lc/gau/v2/cmd/gau@latest
+go install github.com/tomnomnom/waybackurls@latest
+go install github.com/tomnomnom/anew@latest
+go install github.com/tomnomnom/gf@latest
+go install github.com/tomnomnom/qsreplace@latest
+go install github.com/lc/subjs@latest
+go install github.com/hahwul/dalfox/v2@latest
+go install github.com/ffuf/ffuf/v2@latest
 
-10. **SecretFinder:** A python script for finding sensitive data in JavaScript files.
+pipx install uro
+pipx install dirsearch
 
-    ```bash
-    git clone https://github.com/m4ll0k/SecretFinder.git
-    ```
+nuclei -update-templates
+```
 
-11. **Corsy:** A tool to check for CORS misconfigurations.
+| Tool | What it does here |
+|---|---|
+| httpx | Probes the apex domains and fingerprints their technology |
+| katana | Crawls the site (kept on the exact host with `-fs fqdn`) |
+| gau / waybackurls | Historical URLs from public archives |
+| subjs | Extracts URLs from JavaScript files |
+| uro | Removes near-duplicate URLs |
+| anew / qsreplace | Deduplicated appends / query-string rewriting |
+| gf | Runs the GF_Patterns against URLs and files |
+| dirsearch | Directory and file brute-forcing |
+| nuclei | Template-based vulnerability scanning |
+| interactsh-client | Out-of-band callbacks, needed by NovaLure |
+| dalfox | XSS scanning |
+| naabu + nmap | Port and service scanning |
+| ffuf | API endpoint fuzzing |
+| sslscan | TLS configuration |
 
-    ```bash
-    pip3 install corsy
-    ```
+## 5. Wordlists
 
-12. **OpenRedirex:** A simple tool to detect open redirect vulnerabilities.
+```bash
+git clone https://github.com/danielmiessler/SecLists.git ~/tools/wordlists/SecLists
+git clone https://github.com/z5jt/API-documentation-Wordlist.git ~/tools/wordlists/API-documentation-Wordlist
+ln -s ~/tools/wordlists/API-documentation-Wordlist/API-Documentation-Wordlist/api-documentation-endpoint.txt ~/tools/wordlists/api_endpoints.txt
+```
 
-    ```bash
-    go install github.com/rjmandell/OpenRedirex@latest
-    ```
+**OneListForAll:** The old `onelistforallshort.txt` is gone. The repo now builds `onelistforall.txt` (the curated micro list plus every category's short list). Download it from the [releases page](https://github.com/six2dez/OneListForAll/releases), where it ships as a 7z archive, and extract it with `7z x` so it ends up at `~/tools/wordlists/onelistforall.txt`.
 
-13. **dalfox:** A powerful XSS scanner and parameter analyzer.
+## 6. Keeping Up to Date
 
-    ```bash
-    go install github.com/hahwul/dalfox@latest
-    ```
-
-14. **naabu:** A fast port scanner.
-
-    ```bash
-    go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-    ```
-
-15. **ffuf (Fuzz Faster U Fool):** A fast web fuzzer written in Go.
-
-    ```bash
-    go install github.com/ffuf/ffuf@latest
-    ```
-
-16. **whatweb:** Next generation web scanner.
-
-    ```bash
-    sudo apt-get update && sudo apt-get install whatweb # Debian/Ubuntu
-    ```
-    OR
-    ```bash
-    sudo yum install whatweb # CentOS/Fedora
-    ```
-    OR
-    ```bash
-    brew install whatweb # macOS
-    ```
-
-18. **sslscan:** Tests SSL/TLS services to find out the ciphers supported.
-
-    ```bash
-    sudo apt-get update && sudo apt-get install sslscan # Debian/Ubuntu
-    ```
-    OR
-    ```bash
-    sudo yum install sslscan # CentOS/Fedora
-    ```
-    OR
-    ```bash
-    brew install sslscan # macOS
-    ```
-
-20. **paramspider:** Mining parameters from dark corners of web archives.
-
-    ```bash
-    git clone https://github.com/devanshbatham/paramspider
-    cd paramspider
-    pip install .
-    ```
-
-## Wordlists
-
-Ensure you have the necessary wordlists. You can download them using the provided links in the main `README.md` or use your own curated lists. Consider cloning the following repositories for comprehensive wordlists:
-
-* **SecLists:** A collection of multiple types of lists used during security assessments.
-    ```bash
-    git clone https://github.com/danielmiessler/SecLists.git
-    ```
-* **OneListForAll:** A compilation of wordlists from various sources.
-    ```bash
-    git clone https://github.com/six2dez/OneListForAll.git
-    ```
-
-## Configuration
-
-* **Ensure correct paths:** Update the paths in the main `README.md` to reflect the actual locations of your wordlists and tools.
-* **Nuclei Templates:** Keep your Nuclei templates updated:
-    ```bash
-    nuclei -update-templates
-    ```
+```bash
+nuclei -update-templates
+voidrecon update
+for d in ~/tools/*/.git; do git -C "${d%/.git}" pull --ff-only; done
+cp ~/tools/GF_Patterns/*.json ~/.gf/
+```
 
 ## Usage
 
-Once the installation is complete, you can follow the step-by-step guide in the main `README.md` to start your apex domain reconnaissance.
+Once the installation is complete, follow the step-by-step guide in the main `README.md` to start your apex domain reconnaissance.
 
 Happy hunting!
