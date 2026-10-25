@@ -67,16 +67,14 @@ With wildcard apex off, discovered subdomains are recorded as leads but never ac
     /logout
     /admin/billing
     ```
-    If you have nothing to exclude, still create the file so the filter below works:
-    ```bash
-    touch out_of_scope.txt
-    ```
+    If you have nothing to exclude you can skip the file; the filter just warns that it is missing and keeps going.
 
     **Scope filter:** Load this function in the terminal you're working in. Every step pipes its results through it.
     ```bash
     inscope() { python3 ~/tools/DomainDive/scope_filter.py -s domains.txt -x out_of_scope.txt --apex-only "$@"; }
+    alias httpx="$HOME/go/bin/httpx"
     ```
-    It keeps only lines whose host matches `domains.txt` exactly and drops anything matching `out_of_scope.txt`. It reads URLs, bare hosts, or tool output like httpx's.
+    It keeps only lines whose host matches `domains.txt` exactly and drops anything matching `out_of_scope.txt`. It reads URLs, bare hosts, or tool output like httpx's. The `httpx` alias makes sure you get ProjectDiscovery's httpx and not the Python one my tools install into a venv (see install.md).
 
 2.  **Phase 1: Domain Probing**
     ```bash
