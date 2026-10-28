@@ -119,13 +119,27 @@ With wildcard apex off, discovered subdomains are recorded as leads but never ac
 
 5.  **Phase 4: Directory and File Brute-Forcing**
     ```bash
-    dirsearch -l live_domains_only.txt -x 500,502,429,404,400 -R 5 --random-agent -t 100 -F -o directory.txt -w ~/tools/wordlists/onelistforall.txt
+    mkdir -p DirSearch/General DirSearch/Extensions
     ```
+    **General wordlist** (one file per host in `DirSearch/General/`):
     ```bash
-    cat live_domains_only.txt | while read -r url; do
-        dirsearch -u "$url" -e conf,config,bak,backup,swp,old,db,sql,asp,aspx,aspx~,asp~,py,py~,rb,rb~,php,php~,bkp,cache,cgi,csv,html,inc,jar,js,json,jsp,jsp~,lock,log,rar,sql.gz,sql.zip,sql.tar.gz,sql~,swp~,tar,tar.bz2,tar.gz,txt,wadl,zip,xml -x 500,502,429,404,400 -R 2 --random-agent -t 20 -F -o "dirsearch_extensions_$(echo "$url" | sed 's/[^a-zA-Z0-9]/_/g').txt"
-    done
+    while read -r url; do
+        dirsearch -u "$url" -x 500,502,429,404,400 -R 5 --random-agent -t 100 -F -w ~/tools/wordlists/onelistforall.txt -o "DirSearch/General/$(echo "$url" | sed -E 's#^https://##; s#^http://(.*)#\1_http#; s#[:/]+#_#g; s#_+$##').txt"
+    done < live_domains_only.txt
     ```
+    **Targeted extensions** (one file per host in `DirSearch/Extensions/`). Run it in a second terminal alongside the general scan:
+    ```bash
+    while read -r url; do
+        dirsearch -u "$url" -e conf,config,bak,backup,swp,old,db,sql,asp,aspx,aspx~,asp~,py,py~,rb,rb~,php,php~,bkp,cache,cgi,csv,html,inc,jar,js,json,jsp,jsp~,lock,log,rar,sql.gz,sql.zip,sql.tar.gz,sql~,swp~,tar,tar.bz2,tar.gz,txt,wadl,zip,xml -x 500,502,429,404,400 -R 2 --random-agent -t 20 -F -o "DirSearch/Extensions/$(echo "$url" | sed -E 's#^https://##; s#^http://(.*)#\1_http#; s#[:/]+#_#g; s#_+$##').txt"
+    done < live_domains_only.txt
+    ```
+    Files are named after the host: `https://api.target.com` → `api.target.com.txt`, `http://dev.target.com:8080` → `dev.target.com_8080_http.txt`. To search across all of them:
+    ```bash
+    grep -rhE '^(200|301|302|401|403)' DirSearch/ | sort -u            # everything interesting, all hosts
+    grep -rE '^200' DirSearch/Extensions/                                # extension hits, with the file (host) each came from
+    grep -rlE '\.(env|bak|sql|zip)' DirSearch/                           # which hosts have backups/configs
+    ```
+
     **Note:** This will most likely take a while to complete, but it's worth the wait. Usually I have this going on in the background.
 
     dirsearch follows redirects (`-F`). If a redirect lands on a subdomain, ignore those results — they are out of scope.
