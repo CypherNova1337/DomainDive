@@ -133,11 +133,19 @@ With wildcard apex off, discovered subdomains are recorded as leads but never ac
         dirsearch -u "$url" -e conf,config,bak,backup,swp,old,db,sql,asp,aspx,aspx~,asp~,py,py~,rb,rb~,php,php~,bkp,cache,cgi,csv,html,inc,jar,js,json,jsp,jsp~,lock,log,rar,sql.gz,sql.zip,sql.tar.gz,sql~,swp~,tar,tar.bz2,tar.gz,txt,wadl,zip,xml -x 500,502,429,404,400 -R 2 --random-agent -t 20 -F -o "DirSearch/Extensions/$(echo "$url" | sed -E 's#^https://##; s#^http://(.*)#\1_http#; s#[:/]+#_#g; s#_+$##').txt"
     done < live_domains_only.txt
     ```
-    Files are named after the host: `https://api.target.com` → `api.target.com.txt`, `http://dev.target.com:8080` → `dev.target.com_8080_http.txt`. To search across all of them:
+    **Soft-404 cleanup (dirsift.py):** Some sites answer every path with a real-looking page that's actually a custom 404, so a long run comes back with thousands of "hits" that all have the same size. Once both scans finish:
     ```bash
-    grep -rhE '^(200|301|302|401|403)' DirSearch/ | sort -u            # everything interesting, all hosts
-    grep -rE '^200' DirSearch/Extensions/                                # extension hits, with the file (host) each came from
-    grep -rlE '\.(env|bak|sql|zip)' DirSearch/                           # which hosts have backups/configs
+    python3 ~/tools/DomainDive/dirsift.py DirSearch/ -o dirsearch_results.txt --show-dropped
+    ```
+    For each host it finds the status + size combinations that repeat (10 or more times by default, change with `-t`). It drops them as that host's soft-404 and writes everything left, from every file in both folders, into one deduplicated `dirsearch_results.txt` sorted by host. Redirects are grouped by where they point, so hundreds of paths that all redirect to `/login` are dropped, but real folders (`/admin` → `/admin/`) are kept. `--show-dropped` prints what it removed per host (e.g. `dropped 4500 x 200 4KB`), so you can sanity-check it.
+
+    dirsearch rounds sizes (`4KB`), so a real page that rounds to the same size as the soft-404 gets dropped with it. On hosts that matter, look at the dropped sizes and re-check by hand. dirsearch's own `--exclude-sizes` works only when you know the size before scanning, and every subdomain's 404 is a different size, which is why this runs afterwards.
+
+    Files in `DirSearch/` are named after the host: `https://target.com` → `target.com.txt`, `http://target.com:8080` → `target.com_8080_http.txt`. To search the cleaned results:
+    ```bash
+    grep -E '^(200|401|403)' dirsearch_results.txt                      # pages that exist or are protected
+    grep -E '\.(env|bak|sql|zip|config|old)' dirsearch_results.txt        # backups and configs
+    grep 'target.com:8443' dirsearch_results.txt                        # one host/port
     ```
 
     **Note:** This will most likely take a while to complete, but it's worth the wait. Usually I have this going on in the background.
