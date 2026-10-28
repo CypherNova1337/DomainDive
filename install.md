@@ -36,7 +36,7 @@ go version
 These are my own tools, used throughout the workflow.
 
 ```bash
-# DomainDive itself (for scope_filter.py and sort.py)
+# DomainDive itself (for scope_filter.py, dirsift.py and sort.py)
 git clone https://github.com/CypherNova1337/DomainDive ~/tools/DomainDive
 
 # Go tools
@@ -78,6 +78,7 @@ httpx -version    # should print projectdiscovery's httpx banner
 | Tool | What it does here |
 |---|---|
 | `scope_filter.py` | Keeps only exact apex hosts and strips out-of-scope entries from every step's output |
+| `dirsift.py` | Drops each host's soft-404 noise from dirsearch results and merges them into one file |
 | [VoidRecon](https://github.com/CypherNova1337/VoidRecon) | Full recon pipeline with enforced scope (`voidrecon setup` after install to add API keys) |
 | [paramvoid](https://github.com/CypherNova1337/paramvoid) | Hidden HTTP parameter discovery |
 | [sourcemapper](https://github.com/cyphernova1337/sourcemapper) | Rebuilds original JavaScript source from source maps |
