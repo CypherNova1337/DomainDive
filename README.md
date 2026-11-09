@@ -114,8 +114,19 @@ With wildcard apex off, discovered subdomains are recorded as leads but never ac
     ```bash
     cat filterparams.txt | grep -viE "\.(js|css|png|jpg|jpeg|gif|svg|woff2?|ico)(\?|$)" | sed 's/?.*//' | sort -u > endpoints.txt
     paramvoid -i endpoints.txt -oJ paramvoid_results.json
+    paramvoid -i endpoints.txt -disable-redirects -oJ paramvoid_noredirect.json
     ```
-    [paramvoid](https://github.com/CypherNova1337/paramvoid) finds parameters the application reads but never links to (`debug`, `admin`, `user_id`, ...). Add `-headers 'Cookie: session=...'` to test the logged-in surface, and try a second pass with `-casing likeThis` or `-casing like_this`.
+    Split the results by confidence:
+    ```bash
+    jq -r 'to_entries[] | .key as $u | .value.findings[]? | select(.confidence != "low") | "\(.confidence)\t\(.param)\t\($u)"' paramvoid_*.json | sort -u > paramvoid_real.txt
+    jq -r 'to_entries[] | .key as $u | .value.findings[]? | select(.reason == "reflection") | "\($u)?\(.param)=pvtest"' paramvoid_*.json | sort -u > paramvoid_reflected.txt
+    ```
+    [paramvoid](https://github.com/CypherNova1337/paramvoid) finds parameters the application reads but never links to (`debug`, `admin`, `user_id`, ...). It grades every hit:
+    *   **high** — the status code or redirect changed: the server branches on the parameter. Start here.
+    *   **medium** — the body or headers changed in a way an echo doesn't explain.
+    *   **low** — reflection only, a hit on a static file, or a parameter that reacts the same way across most of the host (framework behaviour, `site-wide`).
+
+    `paramvoid_real.txt` holds the high and medium hits (confidence, parameter, URL), the ones worth testing by hand. `paramvoid_reflected.txt` turns the reflection-only hits into test URLs, which feed the XSS step in Phase 7. The second run with `-disable-redirects` catches parameters whose only effect is a redirect. With redirects followed, those land on a normal-looking page and look like nothing happened. Add `-headers 'Cookie: session=...'` to test the logged-in surface, and try a pass with `-casing likeThis` or `-casing like_this`.
 
 5.  **Phase 4: Directory and File Brute-Forcing**
     ```bash
@@ -174,20 +185,30 @@ With wildcard apex off, discovered subdomains are recorded as leads but never ac
     done
     ```
 
-    **Secrets ([SecretSniffer](https://github.com/CypherNova1337/SecretSniffer)):** scans the downloaded JS and the rebuilt source, throws out placeholders, examples and keys that are public by design, then checks each remaining credential with the provider that issued it (one read-only call, e.g. AWS `GetCallerIdentity`, Stripe `GET /v1/account`). Dead keys are dropped; live ones come back with who they belong to, what they can reach, and a command to reproduce the check.
+    **Secrets ([SecretSniffer](https://github.com/CypherNova1337/SecretSniffer)):** scans the downloaded JS and the rebuilt source and throws out placeholders, examples and keys that are public by design. Then it checks each remaining credential: vendor keys with one read-only call to the provider that issued them (e.g. AWS `GetCallerIdentity`, Stripe `GET /v1/account`), and keys for the target's own API by asking that API the same GET with no key, a made-up key and the real key. Dead keys are dropped; live ones come back with who they belong to, what they can reach, and a command to reproduce the check.
+
+    The own-API check talks to whatever API host the code points at, which is often a subdomain (`api.target.com`) and out of scope here. So scan offline first and look at the API hosts before letting it verify:
     ```bash
     mkdir -p sourcemaps
+    secretsniffer -no-verify -o secretsniffer_offline.jsonl js/ sourcemaps/
+    jq -r '.info.api_host // empty' secretsniffer_offline.jsonl | sort -u > api_hosts.txt
+    grep -vxFf <(inscope api_hosts.txt) api_hosts.txt          # API hosts that are NOT the apex
+    ```
+    If that last command prints nothing, every API it would test is the apex itself, so run it again with verification on:
+    ```bash
     secretsniffer -o secretsniffer.jsonl -md secretsniffer_report.md js/ sourcemaps/
     ```
+    If it prints hosts, verifying would send requests to them. Keep the offline results (`secretsniffer -no-verify -o secretsniffer.jsonl -md secretsniffer_report.md js/ sourcemaps/` writes the report without verifying), and check vendor keys by hand with the provider's API, which is outside the program's infrastructure.
     *   **Flags go before the targets.** SecretSniffer stops reading flags at the first file or URL, so in `secretsniffer js/ -no-verify` the `-no-verify` is silently ignored and keys still get checked.
-    *   **Verification uses the key.** Every check is read-only, but it is still an authenticated request made with somebody else's credential. If the program's rules don't allow that, add `-no-verify` and findings are scored offline instead.
-    *   `secretsniffer_report.md` is report-ready: **verified** findings have the provider's response and a repro command, **likely** ones (private keys, database URLs, anything with no provider check) have a score and the reason behind it. `-show-dropped` lists everything discarded and why.
-    *   Scanning files keeps it strictly on the apex: the only requests it makes are the verification calls to providers. Pointing it at the live site instead (`secretsniffer -wayback https://target.com`) finds more, because it discovers lazy-loaded chunks and pulls archived JavaScript, but it also loads every script the page references, including ones hosted on subdomains (the same thing a browser does). Only do that if the program is fine with it.
+    *   **Verification uses the key.** Every check is read-only, but it is still an authenticated request made with somebody else's credential. If the program's rules don't allow that, stay with `-no-verify`. The own-API checks also bypass `-proxy`, so they won't show up in Burp.
+    *   `secretsniffer_report.md` is report-ready: **verified** findings have the response and a repro command; **likely** ones (private keys, database URLs, anything with no check) have a score and the reason behind it. Findings for the target's own API also list the `api host`, `api header` and `api paths`, so you can test them by hand. `-show-dropped` lists everything discarded and why.
+    *   Scanning files keeps the crawl on the apex. Pointing it at the live site instead (`secretsniffer -wayback https://target.com`) finds more, because it discovers lazy-loaded chunks and pulls archived JavaScript. But it also loads every script the page references, including ones hosted on subdomains (the same thing a browser does). Only do that if the program is fine with it.
     *   If a `/.git/` directory turned up exposed (Phase 4 or the Nuclei `git-config-exposure` template), dump it with [git-dumper](https://github.com/arthaud/git-dumper) and scan the whole history, where "deleted" secrets still live:
         ```bash
         git-dumper https://target.com/.git/ gitdump/
-        secretsniffer -o secretsniffer_git.jsonl -git gitdump/
+        secretsniffer -no-verify -o secretsniffer_git.jsonl -git gitdump/
         ```
+        Run the same API-host check on `secretsniffer_git.jsonl` before re-running it without `-no-verify`.
     *   For a second, offline opinion that catches unknown high-entropy tokens, `python3 ~/tools/Personal_Scipts/recon/secretscan.py -r js -o secrets.jsonl` still works.
 
 7.  **Phase 6: Vulnerability Scanning with Nuclei**
@@ -243,6 +264,7 @@ With wildcard apex off, discovered subdomains are recorded as leads but never ac
     **XSS (dalfox):** Replace `your_xss_endpoint_here` with your blind XSS collaborator URL.
     ```bash
     cat filterparams.txt | gf xss | inscope | dalfox pipe -b your_xss_endpoint_here -o dalfox_xss.txt
+    cat paramvoid_reflected.txt | dalfox pipe -b your_xss_endpoint_here -o dalfox_xss_paramvoid.txt
     ```
 
     **IDOR ([Auto-IDOR](https://github.com/CypherNova1337/Auto-IDOR)):** Needs two accounts on the target. Pick an endpoint that returns your own objects (`gf idor` on `filterparams.txt` helps find them):
