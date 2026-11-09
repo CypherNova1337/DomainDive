@@ -41,6 +41,7 @@ git clone https://github.com/CypherNova1337/DomainDive ~/tools/DomainDive
 
 # Go tools
 go install github.com/CypherNova1337/paramvoid@latest
+go install github.com/CypherNova1337/SecretSniffer/cmd/secretsniffer@latest
 go install github.com/cyphernova1337/sourcemapper@latest
 
 # Python tools installed as commands
@@ -81,8 +82,9 @@ httpx -version    # should print projectdiscovery's httpx banner
 | `dirsift.py` | Drops each host's soft-404 noise from dirsearch results and merges them into one file |
 | [VoidRecon](https://github.com/CypherNova1337/VoidRecon) | Full recon pipeline with enforced scope (`voidrecon setup` after install to add API keys) |
 | [paramvoid](https://github.com/CypherNova1337/paramvoid) | Hidden HTTP parameter discovery |
+| [SecretSniffer](https://github.com/CypherNova1337/SecretSniffer) | Finds secrets in JS, source maps, archived JS and git history, and verifies them live with the provider |
 | [sourcemapper](https://github.com/cyphernova1337/sourcemapper) | Rebuilds original JavaScript source from source maps |
-| [Personal_Scipts](https://github.com/CypherNova1337/Personal_Scipts) | `webscan.py` (CORS, CRLF, hop-by-hop) and `secretscan.py` (secrets in JS) |
+| [Personal_Scipts](https://github.com/CypherNova1337/Personal_Scipts) | `webscan.py` (CORS, CRLF, hop-by-hop) and `secretscan.py` (offline secret pass) |
 | [NovaLure](https://github.com/CypherNova1337/NovaLure) | Blind SSRF and open redirects via out-of-band callbacks |
 | [LFI-Machine](https://github.com/CypherNova1337/LFI-Machine) | Adaptive local file inclusion |
 | [SmartSQL](https://github.com/CypherNova1337/SmartSQL) | WAF-aware SQL injection |
@@ -112,6 +114,7 @@ go install github.com/hahwul/dalfox/v2@latest
 go install github.com/ffuf/ffuf/v2@latest
 
 pipx install uro
+pipx install git-dumper
 pipx install dirsearch
 
 nuclei -update-templates
@@ -124,6 +127,7 @@ nuclei -update-templates
 | gau / waybackurls | Historical URLs from public archives |
 | subjs | Extracts URLs from JavaScript files |
 | uro | Removes near-duplicate URLs |
+| git-dumper | Downloads an exposed `/.git/` directory so SecretSniffer can scan its history |
 | anew / qsreplace | Deduplicated appends / query-string rewriting |
 | gf | Runs the GF_Patterns against URLs and files |
 | dirsearch | Directory and file brute-forcing |

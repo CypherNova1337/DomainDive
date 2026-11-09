@@ -160,10 +160,6 @@ With wildcard apex off, discovered subdomains are recorded as leads but never ac
     done
     ```
     ```bash
-    python3 ~/tools/Personal_Scipts/recon/secretscan.py -r js -o secrets.jsonl
-    ```
-    [secretscan.py](https://github.com/CypherNova1337/Personal_Scipts) combines known credential formats with entropy scoring, so it catches unknown tokens as well as AWS, GitHub, Stripe and other keys.
-    ```bash
     gf firebase js/ > firebase_hits.txt
     gf js-sinks js/ > js_sinks.txt
     ```
@@ -177,6 +173,22 @@ With wildcard apex off, discovered subdomains are recorded as leads but never ac
         sourcemapper -jsurl "$url" -output "sourcemaps/$(echo "$url" | md5sum | cut -c1-16)"
     done
     ```
+
+    **Secrets ([SecretSniffer](https://github.com/CypherNova1337/SecretSniffer)):** scans the downloaded JS and the rebuilt source, throws out placeholders, examples and keys that are public by design, then checks each remaining credential with the provider that issued it (one read-only call, e.g. AWS `GetCallerIdentity`, Stripe `GET /v1/account`). Dead keys are dropped; live ones come back with who they belong to, what they can reach, and a command to reproduce the check.
+    ```bash
+    mkdir -p sourcemaps
+    secretsniffer -o secretsniffer.jsonl -md secretsniffer_report.md js/ sourcemaps/
+    ```
+    *   **Flags go before the targets.** SecretSniffer stops reading flags at the first file or URL, so in `secretsniffer js/ -no-verify` the `-no-verify` is silently ignored and keys still get checked.
+    *   **Verification uses the key.** Every check is read-only, but it is still an authenticated request made with somebody else's credential. If the program's rules don't allow that, add `-no-verify` and findings are scored offline instead.
+    *   `secretsniffer_report.md` is report-ready: **verified** findings have the provider's response and a repro command, **likely** ones (private keys, database URLs, anything with no provider check) have a score and the reason behind it. `-show-dropped` lists everything discarded and why.
+    *   Scanning files keeps it strictly on the apex: the only requests it makes are the verification calls to providers. Pointing it at the live site instead (`secretsniffer -wayback https://target.com`) finds more, because it discovers lazy-loaded chunks and pulls archived JavaScript, but it also loads every script the page references, including ones hosted on subdomains (the same thing a browser does). Only do that if the program is fine with it.
+    *   If a `/.git/` directory turned up exposed (Phase 4 or the Nuclei `git-config-exposure` template), dump it with [git-dumper](https://github.com/arthaud/git-dumper) and scan the whole history, where "deleted" secrets still live:
+        ```bash
+        git-dumper https://target.com/.git/ gitdump/
+        secretsniffer -o secretsniffer_git.jsonl -git gitdump/
+        ```
+    *   For a second, offline opinion that catches unknown high-entropy tokens, `python3 ~/tools/Personal_Scipts/recon/secretscan.py -r js -o secrets.jsonl` still works.
 
 7.  **Phase 6: Vulnerability Scanning with Nuclei**
     ```bash
